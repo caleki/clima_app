@@ -70,7 +70,7 @@ class _ClimaScreenState extends State<ClimaScreen> {
                 children: [
                   TextField(
                     controller: _controller,
-                      onSubmitted: (_) => _buscarClima(),
+                    onSubmitted: (_) => _buscarClima(),
                     decoration: const InputDecoration(
                       labelText: '',
                       filled: true,
@@ -110,7 +110,7 @@ class _ClimaScreenState extends State<ClimaScreen> {
                         color: Colors.black,
                       ),
                     ),
-            
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -133,15 +133,15 @@ class _ClimaScreenState extends State<ClimaScreen> {
                                 TextSpan(
                                   text: '  ${clima!.maxTemp}°C\n',
                                   style: const TextStyle(
-                                    fontSize: 34, // Tamaño grande para el número
+                                    fontSize: 34,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const TextSpan(
-                                  text: 'Máxima',
+                                  text: 'MAXIMA',
                                   style: TextStyle(
-                                    fontSize:
-                                        14, // Tamaño más chico para el texto
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
                                 ),
                               ],
@@ -149,7 +149,7 @@ class _ClimaScreenState extends State<ClimaScreen> {
                           ),
                         ),
                         const SizedBox(width: 70),
-            
+
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -169,13 +169,15 @@ class _ClimaScreenState extends State<ClimaScreen> {
                                 TextSpan(
                                   text: '  ${clima!.minTemp}°C\n',
                                   style: const TextStyle(
-                                    fontSize: 34, // Tamaño grande para el número
+                                    fontSize:
+                                        34, // Tamaño grande para el número
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const TextSpan(
-                                  text: 'Mínima',
+                                  text: 'MINIMA',
                                   style: TextStyle(
+                                    fontWeight: FontWeight.bold,
                                     fontSize:
                                         14, // Tamaño más chico para el texto
                                   ),
