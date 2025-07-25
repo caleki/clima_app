@@ -120,7 +120,7 @@ class _ClimaScreenState extends State<ClimaScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 30,
+                            horizontal: 10,
                             vertical: 25,
                           ),
                           child: RichText(
@@ -156,7 +156,7 @@ class _ClimaScreenState extends State<ClimaScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 30,
+                            horizontal: 5,
                             vertical: 25,
                           ),
                           child: RichText(
