@@ -8,6 +8,8 @@ class ClimaModel {
   final String descripcion;
   final String iconUrl;
   final String fechaHora;
+  final String sunrise; // hora de amanecer
+  final String sunset; // hora de atardecer
 
   ClimaModel({
     required this.temperature,
@@ -19,6 +21,8 @@ class ClimaModel {
     required this.descripcion,
     required this.iconUrl,
     required this.fechaHora,
+    required this.sunrise,
+    required this.sunset,
   });
 
   factory ClimaModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,8 @@ class ClimaModel {
           json['forecast']['forecastday'][0]['day']['mintemp_c'].toDouble(),
       condition: json['current']['condition']['text'],
       fechaHora: json['location']['localtime'],
+      sunrise: json['forecast']['forecastday'][0]['astro']['sunrise'],
+      sunset: json['forecast']['forecastday'][0]['astro']['sunset'],
     );
   }
 }

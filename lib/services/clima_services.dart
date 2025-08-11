@@ -20,6 +20,6 @@ class ClimaService {
     } catch (e) {
       print('Error al obtener clima: $e');
       return null;
-    }
+    } 
   }
 }
