@@ -7,6 +7,7 @@ class ClimaModel {
   final String temperatura;
   final String descripcion;
   final String iconUrl;
+  final String fechaHora;
 
   ClimaModel({
     required this.temperature,
@@ -17,6 +18,7 @@ class ClimaModel {
     required this.temperatura,
     required this.descripcion,
     required this.iconUrl,
+    required this.fechaHora,
   });
 
   factory ClimaModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class ClimaModel {
       minTemp:
           json['forecast']['forecastday'][0]['day']['mintemp_c'].toDouble(),
       condition: json['current']['condition']['text'],
+      fechaHora: json['location']['localtime'],
     );
   }
 }
