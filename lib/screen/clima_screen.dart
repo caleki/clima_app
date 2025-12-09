@@ -1,24 +1,14 @@
-import 'package:caleki_climas/models/clima_model.dart';
-import 'package:caleki_climas/services/clima_services.dart';
-import 'package:caleki_climas/utils/weather_background.dart';
+import 'package:caleki_climas/presentation/providers/preferences_provider.dart';
+import 'package:caleki_climas/presentation/providers/weather_provider.dart';
+import 'package:caleki_climas/presentation/widgets/weather_info_display.dart';
+import 'package:caleki_climas/presentation/widgets/weather_video_background.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:video_player/video_player.dart';
+import 'package:provider/provider.dart';
 
 class ClimaScreen extends StatefulWidget {
-  final String? ciudadInicial; 
-  final Function(String) onAgregarHistorial;
-  final Function(String) onCiudadBuscada;
-  final Function(String) onAgregarFavorito;
+  final String? ciudadInicial;
 
-  const ClimaScreen({
-    super.key,
-    this.ciudadInicial,
-    required this.onAgregarHistorial,
-    required this.onCiudadBuscada,
-    required this.onAgregarFavorito,
-  });
+  const ClimaScreen({super.key, this.ciudadInicial});
 
   @override
   State<ClimaScreen> createState() => _ClimaScreenState();
@@ -26,153 +16,51 @@ class ClimaScreen extends StatefulWidget {
 
 class _ClimaScreenState extends State<ClimaScreen> {
   final TextEditingController _controller = TextEditingController();
-  ClimaModel? clima;
-  late VideoPlayerController _videoController;
-  String? _videoPathActual;
 
   @override
   void initState() {
     super.initState();
-    _videoPathActual = 'assets/videos/despejado.mp4';
-    _videoController = VideoPlayerController.asset(
-      _videoPathActual!,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    )
-      ..setLooping(true)
-      ..setVolume(0)
-      ..initialize().then((_) {
-        setState(() {});
-        _videoController.play();
-      });
-
+    // Si hay ciudad inicial, buscamos el clima nada más cargar
     if (widget.ciudadInicial != null && widget.ciudadInicial!.isNotEmpty) {
       _controller.text = widget.ciudadInicial!;
-      _buscarClima();
+      // Usamos addPostFrameCallback para asegurar que el contexto y provider estén listos
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _buscarClima();
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _videoController.dispose();
-    super.dispose();
-  }
-
-
-Future<void> _cambiarVideo(String nuevoPath) async {
-  if (_videoPathActual == nuevoPath) return; // No cambies si es el mismo video
-
-  final viejoController = _videoController;
-  late VideoPlayerController nuevoController;
-
-  try {
-    nuevoController = VideoPlayerController.asset(
-      nuevoPath,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    )
-      ..setLooping(true)
-      ..setVolume(0);
-
-    await nuevoController.initialize();
-    await nuevoController.play();
-
-    setState(() {
-      _videoController = nuevoController;
-      _videoPathActual = nuevoPath;
-    });
-
-    await viejoController.dispose();
-  } catch (e) {
-    // Si falla, muestra un mensaje y no cambia el video
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No se pudo cargar el video de fondo')),
-    );
-  }
-}
-
-  Future<void> _buscarClima() async {
-    final resultado = await ClimaService.obtenerClima(_controller.text);
-
-    if (resultado != null) {
-      clima = resultado;
-
-      // Parseo de horas
-      final horaCiudad = DateTime.parse(clima!.fechaHora);
-      final amanecer = DateFormat("yyyy-MM-dd h:mm a", "en_US").parse(
-        "${horaCiudad.toIso8601String().split('T')[0]} ${clima!.sunrise}"
-      );
-      final atardecer = DateFormat("yyyy-MM-dd h:mm a", "en_US").parse(
-        "${horaCiudad.toIso8601String().split('T')[0]} ${clima!.sunset}"
-      );
-
-      // Obtener ruta del video según clima + hora
-      final videoPath = getVideoForConditionAndTime(
-        condition: clima!.condition,
-        horaCiudad: horaCiudad,
-        amanecer: amanecer,
-        atardecer: atardecer,
-      );
-
-      // Cambiar video dinámicamente solo si es necesario
-      await _cambiarVideo(videoPath);
-
-      initializeDateFormatting('es');
-      widget.onAgregarHistorial(clima!.ciudad);
-
-      setState(() {}); // Para refrescar los datos del clima
+  void _buscarClima() {
+    final ciudad = _controller.text.trim();
+    if (ciudad.isNotEmpty) {
+      // 1. Obtener clima
+      context.read<WeatherProvider>().fetchWeather(ciudad);
+      // 2. Agregar a historial (separación de preocupaciones a través de providers)
+      context.read<UserPreferencesProvider>().agregarAHistorial(ciudad);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    String fechaFormateada = '';
-
-    if (clima != null && clima!.fechaHora.isNotEmpty) {
-      final dateTime = DateTime.tryParse(clima!.fechaHora);
-      if (dateTime != null) {
-        final formato = DateFormat('EEEE d MMMM yyyy, HH:mm', 'es');
-        fechaFormateada = formato.format(dateTime);
-      }
-    }
+    // Escuchamos los cambios en el proveedor de clima
+    final weatherState = context.watch<WeatherProvider>();
 
     return Stack(
       children: [
         // Fondo con video dinámico
-        if (_videoController.value.isInitialized)
-          SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _videoController.value.size.width,
-                height: _videoController.value.size.height,
-                child: VideoPlayer(_videoController),
-              ),
-            ),
-          ),
+        WeatherVideoBackground(weather: weatherState.weather),
 
         Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(130),
-            child: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              flexibleSpace: SafeArea(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: Text(
-                      'EL CLIMA HOY \n EN LA CIUDAD',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 35,
-                        height: 1.1,
-                        color: Colors.black,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            title: const Text(
+              'EL CLIMA HOY',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
           ),
@@ -181,101 +69,101 @@ Future<void> _cambiarVideo(String nuevoPath) async {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-                  TextField(
-                    controller: _controller,
-                    onSubmitted: (_) => _buscarClima(),
-                    decoration: const InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        borderSide: BorderSide(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: _buscarClima,
-                    child: const Text('Buscar'),
-                  ),
-                  const SizedBox(height: 30),
-                  if (clima != null) ...[
-                    Text(clima!.ciudad, style: const TextStyle(fontSize: 34)),
-                    Text(
-                      fechaFormateada,
-                      style: const TextStyle(fontSize: 20, color: Colors.black54),
-                    ),
-                    SizedBox(
-                      height: 100,
-                      width: 100,
-                      child: Image.network(clima!.iconUrl, fit: BoxFit.cover),
-                    ),
-                    Text(
-                      clima!.temperatura,
-                      style: const TextStyle(
-                        fontSize: 42,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTempBox('${clima!.maxTemp}°C', 'MAXIMA'),
-                        const SizedBox(width: 70),
-                        _buildTempBox('${clima!.minTemp}°C', 'MINIMA'),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Text(clima!.descripcion, style: const TextStyle(fontSize: 30)),
-                    const SizedBox(height: 20),
-                  ],
+                  // Barra de búsqueda
+                  _buildSearchBar(context),
+
+                  const SizedBox(height: 20),
+
+                  // Estados de la UI: Loading, Error, Content
+                  if (weatherState.isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (weatherState.errorMessage != null)
+                    _buildError(weatherState.errorMessage!)
+                  else if (weatherState.weather != null)
+                    WeatherInfoDisplay(weather: weatherState.weather!),
                 ],
               ),
             ),
           ),
-          floatingActionButton: clima != null
-              ? FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  tooltip: 'Agregar a Favoritos',
-                  onPressed: () {
-                    widget.onAgregarFavorito(clima!.ciudad);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ciudad agregada a favoritos')),
-                    );
-                  },
-                  child: const Icon(Icons.star, color: Color.fromARGB(255, 255, 196, 0)),
-                )
-              : const SizedBox.shrink(),
+          // Botón flotante para favoritos
+          floatingActionButton:
+              weatherState.weather != null
+                  ? FloatingActionButton(
+                    backgroundColor: Colors.white,
+                    onPressed: () {
+                      context.read<UserPreferencesProvider>().agregarAFavoritos(
+                        weatherState.weather!.ciudad,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${weatherState.weather!.ciudad} agregada a favoritos',
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.star_border,
+                      color: Colors.amber,
+                      size: 30,
+                    ),
+                  )
+                  : null,
         ),
       ],
     );
   }
 
-  Widget _buildTempBox(String temp, String label) {
+  Widget _buildSearchBar(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 25),
-      child: RichText(
-        textAlign: TextAlign.center,
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black),
-          children: [
-            TextSpan(
-              text: '  $temp\n',
-              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
-            ),
-            TextSpan(
-              text: label,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          ],
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _controller,
+        onSubmitted: (_) => _buscarClima(),
+        decoration: InputDecoration(
+          hintText: 'Buscar ciudad...',
+          prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.arrow_forward_ios, size: 18),
+            onPressed: _buscarClima,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 15,
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildError(String msg) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, size: 50, color: Colors.redAccent),
+          const SizedBox(height: 10),
+          Text(
+            msg,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, color: Colors.redAccent),
+          ),
+        ],
       ),
     );
   }
